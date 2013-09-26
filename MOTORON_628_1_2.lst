@@ -1,0 +1,386 @@
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;**********************************************************************
+                      00002 ;   This file is a basic code template for assembly code generation   *
+                      00003 ;   on the PICmicro PIC16F628. This file contains the basic code      *
+                      00004 ;   building blocks to build upon.                                    *  
+                      00005 ;                                                                     *
+                      00006 ;   If interrupts are not used all code presented between the ORG     *
+                      00007 ;   0x004 directive and the label main can be removed. In addition    *
+                      00008 ;   the variable assignments for 'w_temp' and 'status_temp' can       *
+                      00009 ;   be removed.                                                       *                         
+                      00010 ;                                                                     *
+                      00011 ;   Refer to the MPASM User's Guide for additional information on     *
+                      00012 ;   features of the assembler (Document DS33014).                     *
+                      00013 ;                                                                     *
+                      00014 ;   Refer to the respective PICmicro data sheet for additional        *
+                      00015 ;   information on the instruction set.                               *
+                      00016 ;                                                                     *
+                      00017 ;   Template file assembled with MPLAB V4.00.00 and MPASM V2.20.12    *
+                      00018 ;                                                                     *
+                      00019 ;**********************************************************************
+                      00020 ;                                                                     *
+                      00021 ;    Filename:      MOTORON_628_1_2.asm                                 *
+                      00022 ;    Date:          05/07/2010                                        *
+                      00023 ;    File Version:  0.1.2                                               *
+                      00024 ;                                                                     *
+                      00025 ;    Author:        Paul Bates                                        *
+                      00026 ;    Company:                                                         *
+                      00027 ;                                                                     * 
+                      00028 ;                                                                     *
+                      00029 ;**********************************************************************
+                      00030 ;                                                                     *
+                      00031 ;    Files required:                                                  *
+                      00032 ;                                                                     *
+                      00033 ;                                                                     *
+                      00034 ;                                                                     *
+                      00035 ;**********************************************************************
+                      00036 ;                                                                     *
+                      00037 ;    Notes:  "MOTORON - Turns a motor on after a switch is press"     *
+                      00038 ;                                                                     *
+                      00039 ;       The Program simply sets up Bit 0 of Port "A" to Output and then   *
+                      00040 ;   Sets it Low when RA0 is pulled low.                                                           *
+                      00041 ;                                                                                                       
+                                                              *
+                      00042 ;  Hardware Notes:                                                                                      
+                                              *
+                      00043 ;   _MCLR is tied through a 4.7K Resistor to Vcc and PWRT is Enabled  *
+                      00044 ;   A SN754410NE quad half-h driver is attached to PORTB.0 and Vcc    *
+                      00045 ;   A 10K pull up is connected to RA0 and it's state is passed to     *
+                      00046 ;                                                                     *
+                      00047 ;   This is the working version!                                      *
+                      00048 ;                                                                                                       
+                                                              *
+                      00049 ;       Now with SVN support!                                                                           
+                                      *
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00050 ;**********************************************************************
+                      00051 
+                      00052         list      p=16f628a            ; list directive to define processor
+                      00053         #include <p16f628a.inc>        ; processor specific variable definitions
+                      00001         LIST
+                      00002 ; P16F628A.INC  Standard Header File, Version 1.10    Microchip Technology, Inc.
+                      00265         LIST
+                      00266 
+                      00054         
+2007   3FF5           00055         __CONFIG _CP_OFF & _WDT_ON & _BODEN_ON & _PWRTE_ON & _INTRC_OSC_CLKOUT & _MCLRE_ON & _LVP_ON
+                      00056 
+                      00057 ; '__CONFIG' directive is used to embed configuration data within .asm file.
+                      00058 ; The lables following the directive are located in the respective .inc file.
+                      00059 ; See respective data sheet for additional information on configuration word.
+                      00060 
+                      00061 
+                      00062 ;***** VARIABLE DEFINITIONS
+  00000070            00063 w_temp        EQU     0x70        ; variable used for context saving 
+  00000071            00064 status_temp   EQU     0x71        ; variable used for context saving
+                      00065 
+                      00066         cblock  0x20                    ;start of general purpose registers
+  00000020            00067                 count                   ;used in table read routine
+  00000021            00068                 count1                  ;used in delay routine
+                      00069         endc
+                      00070 
+  00000006            00071 MOTORPORT       Equ     PORTB                   ;set constant MOTORPORT = 'PORTB'
+  00000086            00072 MOTORTRIS   Equ TRISB
+  00000005            00073 SWPORT          Equ     PORTA                   ;set constant SWPORT = 'PORTA'
+  00000085            00074 SWTRIS          Equ     TRISA                   ;set constant for TRIS register
+  00000001            00075 BACKSW          Equ     1                       ;set constants for the switches
+  00000000            00076 FRONTSW         Equ     0
+  00000001            00077 MOTOR1          Equ     1                               ; and the motor
+  00000000            00078 MOTOR0          Equ     0
+                      00079 
+                      00080 ;SWDel  Set     Delay                   ;set the de-bounce delay (has to use 'Set' and not 'Equ')
+                      00081 
+                      00082 ;**********************************************************************
+0000                  00083         ORG     0x000             ; processor reset vector
+                      00084 
+0000   3007           00085         movlw   0x07
+0001   009F           00086         movwf   CMCON                                   ;turn comparators off (make it like a 16F84)
+                      00087 
+0002   2803           00088         goto    main                            ; go to beginning of program
+                      00089 
+                      00090 ;  Mainline of MOTORON
+0003                  00091 main
+                      00092 
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00093         PAGE
+0003   0000           00094         nop                                                             ;  "nop" is Required for Emulato
+                            rs
+                      00095   
+0004   1683           00096         bsf     STATUS, RP0             ;  Goto Bank 1 to set Port Direction
+0005   30C0           00097         movlw   b'11000000'                             ; set PortB all outputs
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0006   0086           00098         movwf   MOTORTRIS
+0007   300F           00099         movlw   b'00001111'                             ;set PortA all inputs
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+0008   0085           00100         movwf   SWTRIS
+0009   1283           00101         bcf     STATUS, RP0            ;  Go back to Bank 0
+000A   0186           00102         clrf    MOTORPORT
+000B   0185           00103         clrf    SWPORT
+                      00104 
+000C                  00105 Loop
+                      00106         ; if frontswitch 
+                      00107         ; go backwards
+                      00108         ; else go forwards
+                      00109         
+000C   1805           00110         btfsc   SWPORT, FRONTSW
+000D   2017           00111                 call    Reverse
+000E   1885           00112         btfsc   SWPORT, BACKSW
+000F   2014           00113                 call    Forward
+0010   280C           00114         goto    Loop
+                      00115  
+Warning[207]: Found label after column 1. (ALLSTOP)
+0011   0186           00116  ALLSTOP        clrf   MOTORPORT
+0012   201A           00117         call    Delay
+0013   3400           00118         retlw   0x00
+                      00119  
+Warning[207]: Found label after column 1. (Forward)
+0014   2011           00120  Forward  call  ALLSTOP
+0015   1406           00121         bsf             MOTORPORT,      MOTOR0          ;turn MOTOR0 on
+0016   3400           00122         retlw   0x00
+                      00123         
+Warning[207]: Found label after column 1. (Reverse)
+0017   2011           00124  Reverse        call    ALLSTOP
+0018   1486           00125         bsf             MOTORPORT,      MOTOR1          ;turn MOTOR1 on
+0019   3400           00126         retlw   0x00
+                      00127  
+001A   30FA           00128 Delay   movlw   d'250'                          ;delay 250 ms (4 MHz clock)
+001B   00A1           00129         movwf   count1
+                      00130  
+                      00131         end             ;End of source code.
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  4
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ADEN                              00000003
+ALLSTOP                           00000011
+BACKSW                            00000001
+BRGH                              00000002
+C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
+CCP1CON                           00000017
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCPR1H                            00000016
+CCPR1L                            00000015
+CIS                               00000003
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             0000001F
+CMIE                              00000006
+CMIF                              00000006
+CREN                              00000004
+CSRC                              00000007
+DC                                00000001
+Delay                             0000001A
+EEADR                             0000009B
+EECON1                            0000009C
+EECON2                            0000009D
+EEDATA                            0000009A
+EEIE                              00000007
+EEIF                              00000007
+F                                 00000001
+FERR                              00000002
+FRONTSW                           00000000
+FSR                               00000004
+Forward                           00000014
+GIE                               00000007
+INDF                              00000000
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTF                              00000001
+IRP                               00000007
+Loop                              0000000C
+MOTOR0                            00000000
+MOTOR1                            00000001
+MOTORPORT                         00000006
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  5
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+MOTORTRIS                         00000086
+NOT_BO                            00000000
+NOT_BOD                           00000000
+NOT_BOR                           00000000
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+OERR                              00000001
+OPTION_REG                        00000081
+OSCF                              00000003
+PCL                               00000002
+PCLATH                            0000000A
+PCON                              0000008E
+PEIE                              00000006
+PIE1                              0000008C
+PIR1                              0000000C
+PORTA                             00000005
+PORTB                             00000006
+PR2                               00000092
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+RBIE                              00000003
+RBIF                              00000000
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             0000001A
+RCSTA                             00000018
+RD                                00000000
+RP0                               00000005
+RP1                               00000006
+RX9                               00000006
+RX9D                              00000000
+Reverse                           00000017
+SPBRG                             00000099
+SPEN                              00000007
+SREN                              00000005
+STATUS                            00000003
+SWPORT                            00000005
+SWTRIS                            00000085
+SYNC                              00000004
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0SE                              00000004
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000010
+T1OSCEN                           00000003
+T2CKPS0                           00000000
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  6
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+T2CKPS1                           00000001
+T2CON                             00000012
+TMR0                              00000001
+TMR1CS                            00000001
+TMR1H                             0000000F
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1L                             0000000E
+TMR1ON                            00000000
+TMR2                              00000011
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000085
+TRISB                             00000086
+TRMT                              00000001
+TX9                               00000006
+TX9D                              00000000
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             00000019
+TXSTA                             00000098
+VR0                               00000000
+VR1                               00000001
+VR2                               00000002
+VR3                               00000003
+VRCON                             0000009F
+VREN                              00000007
+VROE                              00000006
+VRR                               00000005
+W                                 00000000
+WR                                00000001
+WREN                              00000002
+WRERR                             00000003
+Z                                 00000002
+_BODEN_OFF                        00003FBF
+_BODEN_ON                         00003FFF
+_BOREN_OFF                        00003FBF
+_BOREN_ON                         00003FFF
+_CP_OFF                           00003FFF
+_CP_ON                            00001FFF
+_DATA_CP_OFF                      00003FFF
+_DATA_CP_ON                       00003EFF
+_ER_OSC_CLKOUT                    00003FFF
+_ER_OSC_NOCLKOUT                  00003FFE
+_EXTCLK_OSC                       00003FEF
+_HS_OSC                           00003FEE
+_INTOSC_OSC_CLKOUT                00003FFD
+MPASM  5.37               MOTORON_628_1_2.ASM   10-29-2010  14:08:23         PAGE  7
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_INTOSC_OSC_NOCLKOUT              00003FFC
+_INTRC_OSC_CLKOUT                 00003FFD
+_INTRC_OSC_NOCLKOUT               00003FFC
+_LP_OSC                           00003FEC
+_LVP_OFF                          00003F7F
+_LVP_ON                           00003FFF
+_MCLRE_OFF                        00003FDF
+_MCLRE_ON                         00003FFF
+_PWRTE_OFF                        00003FFF
+_PWRTE_ON                         00003FF7
+_RC_OSC_CLKOUT                    00003FFF
+_RC_OSC_NOCLKOUT                  00003FFE
+_WDT_OFF                          00003FFB
+_WDT_ON                           00003FFF
+_XT_OSC                           00003FED
+__16F628A                         00000001
+__DEBUG                           1
+count                             00000020
+count1                            00000021
+main                              00000003
+status_temp                       00000071
+w_temp                            00000070
+
+
+MEMORY USAGE MAP ('X' = Used,  '-' = Unused)
+
+0000 : XXXXXXXXXXXXXXXX XXXXXXXXXXXX---- ---------------- ----------------
+2000 : -------X-------- ---------------- ---------------- ----------------
+
+All other memory blocks unused.
+
+Program Memory Words Used:    28
+Program Memory Words Free:  2020
+
+
+Errors   :     0
+Warnings :     3 reported,     0 suppressed
+Messages :     2 reported,     0 suppressed
+
+

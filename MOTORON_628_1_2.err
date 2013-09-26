@@ -1,0 +1,5 @@
+Message[302] C:\DATA\DEVELOPMENT\PROJECTS\TWO.SWITCH.BOT\MOTORON_628_1_2.ASM 98 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\DATA\DEVELOPMENT\PROJECTS\TWO.SWITCH.BOT\MOTORON_628_1_2.ASM 100 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Warning[207] C:\DATA\DEVELOPMENT\PROJECTS\TWO.SWITCH.BOT\MOTORON_628_1_2.ASM 116 : Found label after column 1. (ALLSTOP)
+Warning[207] C:\DATA\DEVELOPMENT\PROJECTS\TWO.SWITCH.BOT\MOTORON_628_1_2.ASM 120 : Found label after column 1. (Forward)
+Warning[207] C:\DATA\DEVELOPMENT\PROJECTS\TWO.SWITCH.BOT\MOTORON_628_1_2.ASM 124 : Found label after column 1. (Reverse)
